@@ -1,5 +1,5 @@
 # ariac_competition
-NIST ARIAC Qualifier repository
+NIST ARIAC Qualifier repository (ongoing)
 
 ## Problem Statement
 The ARIAC Agility Challenge is a competition that tests the ability of a robot to perform a series of tasks in a dynamic environment. The tasks are designed to test the robot’s ability to perform pick-and-place operations, assembly, and kitting. The competition is designed to be a testbed for the development of algorithms that can be used in a real-world manufacturing environment.
