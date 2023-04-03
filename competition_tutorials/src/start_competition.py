@@ -8,7 +8,7 @@ def main(args=None):
 
     interface = CompetitionInterface()
     interface.start_competition()
-    print(len(interface.orders_list))
+    interface.submit_order_client_callback()
     interface.destroy_node()
     rclpy.shutdown()
 
