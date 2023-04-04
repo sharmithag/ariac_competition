@@ -12,3 +12,20 @@ The ARIAC Agility Challenge is a competition that tests the ability of a robot t
 
 https://user-images.githubusercontent.com/90351952/224862355-28eeca21-a165-4d0f-ad90-211a5d5c3121.mp4
 
+
+## Commands to run
+
+```
+cd ariac_ws
+colcon build
+. install/setup.bash
+ros2 run competition_control_system start_competition.py
+
+```
+
+In other terminal(change trial name according to the respective yaml file)
+
+```
+. install/setup.bash
+ros2 launch ariac_gazebo ariac.launch.py trial_name:=rwa2
+```
