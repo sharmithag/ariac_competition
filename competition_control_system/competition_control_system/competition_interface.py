@@ -4,7 +4,7 @@ import rclpy
 from rclpy.node import Node
 from ariac_msgs.msg import Order
 from ariac_msgs.msg import CompetitionState
-from ariac_msgs.msg import AssemblyTask, KittingTask, CombinedTask
+from ariac_msgs.msg import AssemblyTask, KittingTask, CombinedTask, ConveyorParts, BinParts
 from std_srvs.srv import Trigger
 from ariac_msgs.srv import SubmitOrder
 from competition_control_system.storage_class import Orders
@@ -34,7 +34,13 @@ class CompetitionInterface(Node):
 
         self.starter = self.create_client(Trigger, '/ariac/start_competition')
         
-        
+        # Create subscription for conveyor_parts and bin_parts
+        self.subscription = self.create_subscription(
+            ConveyorParts, '/ariac/conveyor_parts', 
+            self.conveyorParts_cb, 10)
+        self.subscription = self.create_subscription(
+            BinParts, '/ariac/bin_parts', 
+            self.binParts_cb, 10)
         
         # Create subscription for breakbeam_0
         
@@ -55,7 +61,11 @@ class CompetitionInterface(Node):
             '/ariac/orders',
             self.retrieve_order_cb,
             10)
+    def conveyorParts_cb(self,msg:ConveyorParts):
+        self.get_logger().info(f'Checking conveyorParts {msg.parts}')
 
+    def binParts_cb(self,msg:BinParts):
+        self.get_logger().info(f'Checking binParts {msg.bins}')
     def start_client(self):
         '''
         A method to initiate the submit order client
@@ -70,7 +80,12 @@ class CompetitionInterface(Node):
                 for order in orders:
                     response = self.submit_order_client_callback(order.id)
                     self.get_logger().info(f'Response for {order.id} is {response.success} and {response.message}')
-            
+            else:
+                for order in orders:
+                    response = self.submit_order_client_callback(order.id)
+                    self.get_logger().info(f'Response for {order.id} is {response.success} and {response.message}')
+                    # self.get_logger().info(f'Checking task {order.task}')
+                
     def submit_order_client_callback(self, order_id):
         '''
         The callback to request the SubmitOrder service
@@ -97,12 +112,12 @@ class CompetitionInterface(Node):
 
     def retrieve_order_cb(self, msg: Order):
         if msg.type == 0:
-            order = Orders(msg.id, msg.priority, msg.type, KittingTask)
+            order = Orders(msg.id, msg.priority, msg.type, msg.kitting_task)
 
         if msg.type == 1:
-            order = Orders(msg.id, msg.priority, msg.type, AssemblyTask)
+            order = Orders(msg.id, msg.priority, msg.type, msg.assembly_task)
         if msg.type == 2:
-            order = Orders(msg.id, msg.priority, msg.type, CombinedTask)
+            order = Orders(msg.id, msg.priority, msg.type, msg.combined_task)
         if msg.priority == 1:
             self.orders_dict["1"].append(order)
         if msg.priority == 0:

@@ -3,7 +3,7 @@
 <package format="3">
   <name>competition_control_system</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>ariac competition control system</description>
   <maintainer email="sharmithaganesan08@gmail.com">sharmitha</maintainer>
   <license>MIT license</license>
 
