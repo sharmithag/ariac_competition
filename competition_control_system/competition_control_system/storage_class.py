@@ -1,5 +1,7 @@
 from ariac_msgs.msg import AssemblyTask, KittingTask, CombinedTask
 class Orders:
+
+
     def __init__(self, id, priority, type, task):
         self.orders = {}
         # order_object = []   
@@ -8,3 +10,11 @@ class Orders:
         self.type=type
 
         self.task=task
+  
+
+class Parts:
+    def __init__(self):
+        # " 0 " - Bin Parts, " 1 " - Conveyor Parts
+        self.partsDict = {"0" :[], "1":[]}
+    def print_dict(self):
+        return self.partsDict
