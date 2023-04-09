@@ -66,6 +66,7 @@ class CompetitionInterface(Node):
     def __init__(self):
         super().__init__('start_competition_node')
         self.partObj = Parts()
+        self.bin_num_list = [1,2,3,4,5,6,7,8]
         self.competition_state = None
         self.orders_dict = {"0": [], "1": []}
         self.subscription = self.create_subscription(
@@ -106,21 +107,40 @@ class CompetitionInterface(Node):
     
     def conveyorParts_cb(self,msg:ConveyorParts):
 
-        self.get_logger().info(f'Checking conveyorParts {msg.parts}')
+        # self.get_logger().info(f'Checking conveyorParts {msg.parts}')
         # self.get_logger().info(f'Printing conveyorParts {msg.parts[0].part.color }')
         for i in range (len(msg.parts)):
             self.partObj.partsDict["1"].append([msg.parts[i].part.color, msg.parts[i].part.type, msg.parts[i].quantity])
         self.partObj.partsDict["1"]=list(set(tuple(row) for row in self.partObj.partsDict["1"]))
-        self.get_logger().info(f'Checking conveyorParts {self.partObj.print_dict()}')
+        # self.get_logger().info(f'Checking conveyorParts {self.partObj.print_dict()}')
 
     def binParts_cb(self,msg:BinParts):
-        self.get_logger().info(f'Checking binParts {msg.bins}')
+        # self.get_logger().info(f'Checking binParts {msg.bins}')
         for i in range (len(msg.bins)):
-            self.partObj.partsDict["0"].append([msg.bins[i].bin_number, msg.bins[i].parts[0].part.color, msg.bins[i].parts[0].part.type, msg.bins[i].parts[0].quantity])
+            self.partObj.partsDict["0"].append([msg.bins[i].parts[0].part.color, msg.bins[i].parts[0].part.type, msg.bins[i].parts[0].quantity,msg.bins[i].bin_number])
             self.partObj.partsDict["0"]=list(set(tuple(row) for row in self.partObj.partsDict["0"]))
-            self.get_logger().info(f'Checking binParts {self.partObj.print_dict()}')
-    
+        # self.get_logger().info(f'Checking binParts {self.partObj.print_dict()}')
         
+    def collecting_parts(self):
+        '''collecting_parts_cb method : collect parts from conveyor belt and put it on the bins
+        '''
+        self.get_logger().info(f'Checking binParts {self.partObj.print_dict()}')
+
+        for i in range (len(self.partObj.partsDict["0"])):
+            #accessing bin_number and maintaining a bin_num_list 
+            self.partObj.partsDict["0"][i] = list(self.partObj.partsDict["0"][i])
+            self.bin_num_list.remove(self.partObj.partsDict["0"][i][3])
+        
+        #PERFORM PICK AND PLACE (pending) and update parts dict
+        for j in range (len(self.partObj.partsDict["1"])):
+            temp = list(self.partObj.partsDict["1"][j])
+            temp.append(self.bin_num_list[j])
+            self.partObj.partsDict["0"].append(temp)
+        self.get_logger().info(f'Checking end bin parts {self.partObj.partsDict["0"]}')  
+    
+    def comparing_orders_parts(self):
+        for i in self.orders_dict["0"]:
+            self.get_logger().info(f'Tasks in orders {i.task.parts}')
         
     def start_client(self):
         '''
@@ -167,6 +187,8 @@ class CompetitionInterface(Node):
         self.competition_state = msg.competition_state
 
     def retrieve_order_cb(self, msg: Order):
+        # self.get_logger().info(f'Received order for {msg} ')
+
         if msg.type == 0:
             order = Orders(msg.id, msg.priority, msg.type, msg.kitting_task)
 
@@ -211,7 +233,8 @@ class CompetitionInterface(Node):
                 rclpy.spin_once(self)
             except KeyboardInterrupt:
                 return
-            
+        self.collecting_parts()   
+        self.comparing_orders_parts()
         self.start_client()
 
     def breakbeam0_cb(self, msg: BreakBeamStatus):
