@@ -69,6 +69,7 @@ class CompetitionInterface(Node):
         self.bin_num_list = [1,2,3,4,5,6,7,8]
         self.competition_state = None
         self.orders_dict = {"0": [], "1": []}
+        self.final_bin_parts = {"1": [], "2": [],"3": [], "4": [],"5": [], "6": [],"7": [], "8": []}
         self.subscription = self.create_subscription(
             CompetitionState, '/ariac/competition_state', 
             self.competition_state_cb, 10)
@@ -104,21 +105,22 @@ class CompetitionInterface(Node):
             '/ariac/orders',
             self.retrieve_order_cb,
             10)
-    
+        
+        
     def conveyorParts_cb(self,msg:ConveyorParts):
 
         # self.get_logger().info(f'Checking conveyorParts {msg.parts}')
         # self.get_logger().info(f'Printing conveyorParts {msg.parts[0].part.color }')
         for i in range (len(msg.parts)):
-            self.partObj.partsDict["1"].append([msg.parts[i].part.color, msg.parts[i].part.type, msg.parts[i].quantity])
-        self.partObj.partsDict["1"]=list(set(tuple(row) for row in self.partObj.partsDict["1"]))
+            self.partObj.partsDict["conveyor"].append([msg.parts[i].part.color, msg.parts[i].part.type, msg.parts[i].quantity])
+        self.partObj.partsDict["conveyor"]=list(set(tuple(row) for row in self.partObj.partsDict["conveyor"]))
         # self.get_logger().info(f'Checking conveyorParts {self.partObj.print_dict()}')
 
     def binParts_cb(self,msg:BinParts):
         # self.get_logger().info(f'Checking binParts {msg.bins}')
         for i in range (len(msg.bins)):
-            self.partObj.partsDict["0"].append([msg.bins[i].parts[0].part.color, msg.bins[i].parts[0].part.type, msg.bins[i].parts[0].quantity,msg.bins[i].bin_number])
-            self.partObj.partsDict["0"]=list(set(tuple(row) for row in self.partObj.partsDict["0"]))
+            self.partObj.partsDict["bin"].append([msg.bins[i].parts[0].part.color, msg.bins[i].parts[0].part.type, msg.bins[i].parts[0].quantity,msg.bins[i].bin_number])
+            self.partObj.partsDict["bin"]=list(set(tuple(row) for row in self.partObj.partsDict["bin"]))
         # self.get_logger().info(f'Checking binParts {self.partObj.print_dict()}')
         
     def collecting_parts(self):
@@ -126,21 +128,51 @@ class CompetitionInterface(Node):
         '''
         self.get_logger().info(f'Checking binParts {self.partObj.print_dict()}')
 
-        for i in range (len(self.partObj.partsDict["0"])):
+        for i in range (len(self.partObj.partsDict["bin"])):
             #accessing bin_number and maintaining a bin_num_list 
-            self.partObj.partsDict["0"][i] = list(self.partObj.partsDict["0"][i])
-            self.bin_num_list.remove(self.partObj.partsDict["0"][i][3])
+            
+            self.final_bin_parts[f'{self.partObj.partsDict["bin"][i][3]}'].append([self.partObj.partsDict["bin"][i][0],self.partObj.partsDict["bin"][i][1],self.partObj.partsDict["bin"][i][2]])
+            self.bin_num_list.remove(self.partObj.partsDict["bin"][i][3])
         
-        #PERFORM PICK AND PLACE (pending) and update parts dict
-        for j in range (len(self.partObj.partsDict["1"])):
-            temp = list(self.partObj.partsDict["1"][j])
-            temp.append(self.bin_num_list[j])
-            self.partObj.partsDict["0"].append(temp)
-        self.get_logger().info(f'Checking end bin parts {self.partObj.partsDict["0"]}')  
+        #PERFORM PICK AND PLACE (pending) and update final_bin_parts dict
+        for j in range (len(self.partObj.partsDict["conveyor"])):
+            
+            self.final_bin_parts[f'{self.bin_num_list[j]}'].append(list(self.partObj.partsDict["conveyor"][j]))
+        # self.get_logger().info(f'Checking end bin parts {self.final_bin_parts}')  
+    
     
     def comparing_orders_parts(self):
+        self.get_logger().info(f'Checking end bin parts before {self.final_bin_parts}')  
+
         for i in self.orders_dict["0"]:
-            self.get_logger().info(f'Tasks in orders {i.task.parts}')
+            for j in range(len(i.task.parts)):
+                # self.get_logger().info(f'Tasks in orders with {i.task.parts[j].part}')
+                
+                for k,v in self.final_bin_parts.items():
+                    if v != [] and v[0][2] > 0 :       
+                                      
+                        # self.get_logger().info(f'checking sublist of list {v[0]} and {[i.task.parts[j].part.color,i.task.parts[j].part.type]}')
+                        if(all(x in v[0] for x in [i.task.parts[j].part.color,i.task.parts[j].part.type])):
+                            # self.get_logger().info("True")
+                            v[0][2] = v[0][2] - 1
+                    elif v != []:
+                        # Create a client for submitting order
+                        self.submit_order_cli = self.create_client(SubmitOrder, '/ariac/submit_order')       
+                        while not self.submit_order_cli.wait_for_service(timeout_sec=1.0):
+                            self.get_logger().info('service not available, waiting again...')
+                        self.req = SubmitOrder.Request()
+                        response = self.submit_order_client_callback(i.id)
+                        response.success = False
+                self.get_logger().info(f'Checking end bin after parts {self.final_bin_parts}')  
+                    
+                    
+                    
+            # self.get_logger().info(f'Tasks in orders with part {i.task.parts.part}')
+                # self.get_logger().info(f'Tasks in orders with parts[0] {i.task.parts[0]}')
+        
+        # for i in self.orders_dict["0"]:
+        #     for j in range(len(i.task.parts)):
+        #         self.get_logger().info(f'Tasks in orders with {i.task.parts[j].part}')
         
     def start_client(self):
         '''

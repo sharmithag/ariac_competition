@@ -15,6 +15,6 @@ class Orders:
 class Parts:
     def __init__(self):
         # " 0 " - Bin Parts, " 1 " - Conveyor Parts
-        self.partsDict = {"0" :[], "1":[]}
+        self.partsDict = {"bin" :[], "conveyor":[]}
     def print_dict(self):
         return self.partsDict
