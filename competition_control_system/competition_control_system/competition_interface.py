@@ -12,8 +12,14 @@ from ariac_msgs.srv import SubmitOrder
 from competition_control_system.storage_class import Orders, Parts
 from rclpy import qos
 from ariac_msgs.msg import BreakBeamStatus
+from ariac_msgs.msg import AdvancedLogicalCameraImage as AdvancedLogicalCameraImageMsg
 
-
+from competition_control_system.utils import (
+    multiply_pose,
+    rpy_from_quaternion,
+    rad_to_deg_str,
+    AdvancedLogicalCameraImage
+)
 class CompetitionInterface(Node):
     # Dictionary to convert competition_state constants to strings
     states = {
@@ -98,6 +104,16 @@ class CompetitionInterface(Node):
             self.breakbeam0_cb,
             qos.qos_profile_sensor_data)
         
+        # Subscriber to the logical camera topic
+        self._advanced_camera0_sub = self.create_subscription(
+            AdvancedLogicalCameraImageMsg,
+            '/ariac/sensors/advanced_camera_0/image',
+            self._advanced_camera0_cb,
+            qos.qos_profile_sensor_data)
+
+        # Store each camera image as an AdvancedLogicalCameraImage object
+        self._camera_image: AdvancedLogicalCameraImage = None
+        
         
         # Create subscription for retreiving orders
         self.retrieve_order_sub = self.create_subscription(
@@ -106,7 +122,14 @@ class CompetitionInterface(Node):
             self.retrieve_order_cb,
             10)
         
-        
+    @property
+    def camera_image(self):
+        return self._camera_image
+
+    @property
+    def conveyor_part_count(self):
+        return self._conveyor_part_count
+       
     def conveyorParts_cb(self,msg:ConveyorParts):
 
         # self.get_logger().info(f'Checking conveyorParts {msg.parts}')
@@ -232,7 +255,61 @@ class CompetitionInterface(Node):
             self.orders_dict["1"].append(order)
         if msg.priority == 0:
             self.orders_dict["0"].append(order)
+            
+        self.collecting_parts() 
+        self.comparing_orders_parts()
 
+    def parse_advanced_camera_image(self, image: AdvancedLogicalCameraImage) -> str:
+        '''
+        Parse an AdvancedLogicalCameraImage message and return a string representation.
+        '''
+
+        if len(image._part_poses) == 0:
+            return 'No parts detected'
+
+        output = '\n\n'
+        for i, part_pose in enumerate(image._part_poses):
+            part_pose: PartPoseMsg
+            output += '==========================\n'
+            part_color = CompetitionInterface._part_colors[part_pose.part.color].capitalize()
+            part_color_emoji = CompetitionInterface._part_colors_emoji[part_pose.part.color]
+            part_type = CompetitionInterface._part_types[part_pose.part.type].capitalize()
+            output += f'Part {i+1}: {part_color_emoji} {part_color} {part_type}\n'
+            output += '--------------------------\n'
+            output += 'Camera Frame\n'
+            output += '--------------------------\n'
+
+            output += '  Position:\n'
+            output += f'    x: {part_pose.pose.position.x:.3f} (m)\n'
+            output += f'    y: {part_pose.pose.position.y:.3f} (m)\n'
+            output += f'    z: {part_pose.pose.position.z:.3f} (m)\n'
+
+            roll, pitch, yaw = rpy_from_quaternion(part_pose.pose.orientation)
+            output += '  Orientation:\n'
+            output += f'    roll: {rad_to_deg_str(roll)}\n'
+            output += f'    pitch: {rad_to_deg_str(pitch)}\n'
+            output += f'    yaw: {rad_to_deg_str(yaw)}\n'
+
+            part_world_pose = multiply_pose(image._sensor_pose, part_pose.pose)
+            output += '--------------------------\n'
+            output += 'World Frame\n'
+            output += '--------------------------\n'
+
+            output += '  Position:\n'
+            output += f'    x: {part_world_pose.position.x:.3f} (m)\n'
+            output += f'    y: {part_world_pose.position.y:.3f} (m)\n'
+            output += f'    z: {part_world_pose.position.z:.3f} (m)\n'
+
+            roll, pitch, yaw = rpy_from_quaternion(part_world_pose.orientation)
+            output += '  Orientation:\n'
+            output += f'    roll: {rad_to_deg_str(roll)}\n'
+            output += f'    pitch: {rad_to_deg_str(pitch)}\n'
+            output += f'    yaw: {rad_to_deg_str(yaw)}\n'
+
+            output += '==========================\n\n'
+
+        return output
+    
     def start_competition(self):
         self.get_logger().info('Waiting for competition to be ready')
 
@@ -265,12 +342,22 @@ class CompetitionInterface(Node):
                 rclpy.spin_once(self)
             except KeyboardInterrupt:
                 return
-        self.collecting_parts()   
-        self.comparing_orders_parts()
-        self.start_client()
+        # self.collecting_parts()   
+        # self.comparing_orders_parts()
+        # self.start_client()
 
     def breakbeam0_cb(self, msg: BreakBeamStatus):
         if not self.object_detected and msg.object_detected:
             self.part_count += 1
 
         self.object_detected = msg.object_detected
+        
+    def _advanced_camera0_cb(self, msg: AdvancedLogicalCameraImageMsg):
+        '''Callback for the topic /ariac/sensors/advanced_camera_0/image
+
+        Arguments:
+            msg -- AdvancedLogicalCameraImage message
+        '''
+        self._camera_image = AdvancedLogicalCameraImage(msg.part_poses,
+                                                        msg.tray_poses,
+                                                        msg.sensor_pose)
