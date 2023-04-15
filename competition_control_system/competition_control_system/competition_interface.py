@@ -72,7 +72,7 @@ class CompetitionInterface(Node):
     def __init__(self):
         super().__init__('start_competition_node')
         self.partObj = Parts()
-        self.bin_num_list = [1,2,3,4,5,6,7,8]
+        # self.bin_num_list = [1,2,3,4,5,6,7,8]
         self.competition_state = None
         self.orders_dict = {"0": [], "1": []}
         self.final_bin_parts = {"1": [], "2": [],"3": [], "4": [],"5": [], "6": [],"7": [], "8": []}
@@ -149,18 +149,24 @@ class CompetitionInterface(Node):
     def collecting_parts(self):
         '''collecting_parts_cb method : collect parts from conveyor belt and put it on the bins
         '''
-        self.get_logger().info(f'Checking binParts {self.partObj.print_dict()}')
+        self.get_logger().info(f'Checking Collected Parts {self.partObj.print_dict()}')
 
         for i in range (len(self.partObj.partsDict["bin"])):
-            #accessing bin_number and maintaining a bin_num_list 
+            #accessing bin_number and appending to final bin parts
+            if self.final_bin_parts[f'{self.partObj.partsDict["bin"][i][3]}'] == []:
+                self.final_bin_parts[f'{self.partObj.partsDict["bin"][i][3]}'].append([self.partObj.partsDict["bin"][i][0],self.partObj.partsDict["bin"][i][1],self.partObj.partsDict["bin"][i][2]])
+            # self.get_logger().info(f'Bin number removed : {self.partObj.partsDict["bin"][i][3]}')
+            # self.bin_num_list.remove(self.partObj.partsDict["bin"][i][3])
             
-            self.final_bin_parts[f'{self.partObj.partsDict["bin"][i][3]}'].append([self.partObj.partsDict["bin"][i][0],self.partObj.partsDict["bin"][i][1],self.partObj.partsDict["bin"][i][2]])
-            self.bin_num_list.remove(self.partObj.partsDict["bin"][i][3])
-        
+            
         #PERFORM PICK AND PLACE (pending) and update final_bin_parts dict
         for j in range (len(self.partObj.partsDict["conveyor"])):
-            
-            self.final_bin_parts[f'{self.bin_num_list[j]}'].append(list(self.partObj.partsDict["conveyor"][j]))
+            for k in range (1, len(self.final_bin_parts)+1):
+                
+                if self.final_bin_parts[f'{k}'] == []:
+                    self.get_logger().info(f'CHECKING KEY VALUE : {k}')
+                    self.final_bin_parts[f'{k}'].append(list(self.partObj.partsDict["conveyor"][j]))
+                    break
         # self.get_logger().info(f'Checking end bin parts {self.final_bin_parts}')  
     
     
@@ -256,8 +262,9 @@ class CompetitionInterface(Node):
         if msg.priority == 0:
             self.orders_dict["0"].append(order)
             
-        self.collecting_parts() 
-        self.comparing_orders_parts()
+        # self.collecting_parts() 
+        # self.comparing_orders_parts()
+        
 
     def parse_advanced_camera_image(self, image: AdvancedLogicalCameraImage) -> str:
         '''
@@ -342,6 +349,8 @@ class CompetitionInterface(Node):
                 rclpy.spin_once(self)
             except KeyboardInterrupt:
                 return
+            
+        self.get_logger().info('Start done')
         # self.collecting_parts()   
         # self.comparing_orders_parts()
         # self.start_client()
