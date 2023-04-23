@@ -19,7 +19,7 @@ https://user-images.githubusercontent.com/90351952/224862355-28eeca21-a165-4d0f-
 cd ariac_ws
 colcon build
 . install/setup.bash
-ros2 run competition_control_system start_competition.py
+ros2 launch ariac_gazebo ariac.launch.py trial_name:=rwa2
 
 ```
 
@@ -27,5 +27,5 @@ In other terminal(change trial name according to the respective yaml file)
 
 ```
 . install/setup.bash
-ros2 launch ariac_gazebo ariac.launch.py trial_name:=rwa2
+ros2 run competition_control_system start_competition.py
 ```
