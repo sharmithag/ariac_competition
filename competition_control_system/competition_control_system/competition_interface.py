@@ -53,6 +53,7 @@ class CompetitionInterface(Node):
         PartMsg.PUMP: 'pump',
         PartMsg.REGULATOR: 'regulator',
         PartMsg.SENSOR: 'sensor',
+        
     }
     '''Dictionary for converting AGVDestination constants to strings'''
 
@@ -86,7 +87,7 @@ class CompetitionInterface(Node):
 
         self.subscription = self.create_subscription(
             ConveyorParts, '/ariac/conveyor_parts', 
-            self.conveyorParts_cb, 10)
+            self.conveyorParts_cb, 1)
         # Created a subscription for bin parts
         self.subscription = self.create_subscription(
             BinParts, '/ariac/bin_parts', 
@@ -131,7 +132,7 @@ class CompetitionInterface(Node):
         return self._conveyor_part_count
        
     def conveyorParts_cb(self,msg:ConveyorParts):
-
+        
         # self.get_logger().info(f'Checking conveyorParts {msg.parts}')
         # self.get_logger().info(f'Printing conveyorParts {msg.parts[0].part.color }')
         for i in range (len(msg.parts)):
@@ -171,7 +172,7 @@ class CompetitionInterface(Node):
     
     
     def comparing_orders_parts(self):
-        self.get_logger().info(f'Checking end bin parts before {self.final_bin_parts}')  
+        # self.get_logger().info(f'Checking end bin parts before {self.final_bin_parts}')  
 
         for i in self.orders_dict["0"]:
             for j in range(len(i.task.parts)):
@@ -192,7 +193,7 @@ class CompetitionInterface(Node):
                         self.req = SubmitOrder.Request()
                         response = self.submit_order_client_callback(i.id)
                         response.success = False
-                self.get_logger().info(f'Checking end bin after parts {self.final_bin_parts}')  
+        # self.get_logger().info(f'Checking end bin after parts {self.final_bin_parts}')  
                     
                     
                     
@@ -262,9 +263,7 @@ class CompetitionInterface(Node):
         if msg.priority == 0:
             self.orders_dict["0"].append(order)
             
-        # self.collecting_parts() 
-        # self.comparing_orders_parts()
-        
+       
 
     def parse_advanced_camera_image(self, image: AdvancedLogicalCameraImage) -> str:
         '''
@@ -342,11 +341,22 @@ class CompetitionInterface(Node):
 
         if future.result().success:
             self.get_logger().info('Started competition.')
+            
         else:
             self.get_logger().info('Unable to start competition')
+        image = self.camera_image
+        self.get_logger().info(f'Part Count: {self.part_count}', throttle_duration_sec=2.0)
+
+        if image is not None:
+            self.get_logger().info(self.parse_advanced_camera_image(image), throttle_duration_sec=5.0)
+        # rate = CompetitionInterface.create_rate(2,2.5)
+        # rate.sleep()    
+        self.collecting_parts()
+        
         while (self.competition_state != CompetitionState.ORDER_ANNOUNCEMENTS_DONE):
             try:
                 rclpy.spin_once(self)
+                self.comparing_orders_parts()  
             except KeyboardInterrupt:
                 return
             
